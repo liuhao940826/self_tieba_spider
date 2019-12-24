@@ -1,0 +1,9 @@
+{
+    "DEFAULT_TIEBA": "处对象",
+    "MYSQL_PASSWD": "root",
+    "MYSQL_DBNAME": {
+        "处对象": "fall_in_love"
+    },
+    "MYSQL_USER": "root",
+    "MYSQL_HOST": "localhost"
+}
