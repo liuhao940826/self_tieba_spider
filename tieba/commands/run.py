@@ -59,36 +59,91 @@ class Command(crawl.Command):
         cfg = config.config()
         if len(args) >= 3:
             raise UsageError("Too many arguments!")
-            
+
+        #处理编码
         for i in range(len(args)):
             if isinstance(args[i], bytes):
                 args[i] = args[i].decode("utf8")
-        
+
+        #设置配置数据库的
         self.settings.set('MYSQL_HOST', cfg.config['MYSQL_HOST'])
         self.settings.set('MYSQL_USER', cfg.config['MYSQL_USER'])
         self.settings.set('MYSQL_PASSWD', cfg.config['MYSQL_PASSWD'])
-        
-        tbname = cfg.config['DEFAULT_TIEBA']
-        if len(args) >= 1:
-            tbname = args[0]
-            
-        dbname = None    
-        if tbname in cfg.config['MYSQL_DBNAME'].keys():
-            dbname = cfg.config['MYSQL_DBNAME'][tbname]
-        if len(args) >= 2:
-            dbname = args[1]
-            cfg.config['MYSQL_DBNAME'][tbname] = dbname
-        if not dbname:
-            raise UsageError("Please input database name!")
-            
+
+        if len(args) == 1:
+            #单个参数多个tbname,但是部分库或者
+            self.singleton_arg(args, cfg, opts)
+        elif len(args) >= 2:
+            #多个参数处理tbname和dbname 分库去执行
+            self.prototype_arg(args, cfg, opts)
+        else:
+            #走配置文件
+            print("走配置文件的逻辑.................")
+            dbname = list(cfg.config['MYSQL_DBNAME'].values())[0]
+            self.loadConfig(cfg,opts,dbname)
+
+
+
+    #单个参数的处理
+    def singleton_arg(self,args,cfg,opts):
+        #获取数据库的名字,不拆库
+        dbname=list(cfg.config['MYSQL_DBNAME'].values())[0]
+        print("数据库名字dbName",dbname)
+        #获取传入的参数
+        tbnames = args[0]
+        #切割传入的参数  支持多个贴吧名
+        tbnameList = tbnames.split(',')
+        print("tbnameList的长度:",len(tbnameList))
+        if tbnameList is None or len(tbnameList)<1:
+            self.loadConfig(cfg=cfg,opts=opts,dbname=dbname)
+        else:
+            #遍历参数的贴吧名
+            for tbname in tbnameList:
+                print("当前tbname:", tbname)
+                print("贴吧名:", tbname, "数据库名:", dbname)
+                self.process_config(tbname, dbname, cfg, opts)
+
+    # 多个参数的处理,如果参数大于2个按照传参的来处理数据库分库逻辑
+    def prototype_arg(self, args, cfg, opts):
+        #获取对应的贴吧集合和数据库集合
+        tbnameList = args[0].split(',')
+        dbnameList = args[1].split(',')
+
+        if len(tbnameList) != len(dbnameList):
+            #多参数读取配置文件
+            dbname = list(cfg.config['MYSQL_DBNAME'].values())[0]
+            self.loadConfig(cfg, opts, dbname)
+
+        else:
+            # 如果是输入的db喝tb直接用 分库逻辑
+            for index in range(len(tbnameList)):
+                tbname = tbnameList[index]
+                dbname = dbnameList[index]
+                # 执行配置
+                print("贴吧名:",tbname,"数据库名:",dbname)
+                self.process_config(tbname, dbname, cfg, opts)
+
+    # 加载配置文件
+    def loadConfig(self, cfg, opts, dbname):
+        # 如果没有 读取项目默认配置文件的贴吧名
+        # 存入数组贴吧名
+        tbnames = cfg.config['DEFAULT_TIEBA']
+        for tbname in tbnames:
+            self.process_config(tbname, dbname, cfg, opts)
+
+    #执行处理配置
+    def process_config(self,tbname,dbname,cfg,opts):
         self.settings.set('TIEBA_NAME', tbname, priority='cmdline')
         self.settings.set('MYSQL_DBNAME', dbname, priority='cmdline')
-        
-        config.init_database(cfg.config['MYSQL_HOST'], cfg.config['MYSQL_USER'], cfg.config['MYSQL_PASSWD'], dbname)
-        
+        #初始化数据库
+        print("开始初始化数据库配置........")
+        config.init_database(cfg.config['MYSQL_HOST'], cfg.config['MYSQL_USER'], cfg.config['MYSQL_PASSWD'],
+                             dbname)
+        print("初始化数据库配置完成........")
         log = config.log(tbname, dbname, self.settings['BEGIN_PAGE'], opts.good_only, opts.see_lz)
         self.settings.set('SIMPLE_LOG', log)
+        #
         self.crawler_process.crawl('tieba', **opts.spargs)
         self.crawler_process.start()
-        
         cfg.save()
+
