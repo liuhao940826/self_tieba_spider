@@ -74,7 +74,7 @@ def init_database(host, user, passwd, dbname):
     #万恶的MySQLdb会自动加上单引号 结果导致错误
     db.select_db(dbname)
     tx.execute("create table if not exists thread(\
-        id BIGINT(12), title VARCHAR(100), author VARCHAR(30), reply_num INT(4),\
+        id BIGINT(12), tb_name VARCHAR(100) ,title VARCHAR(100), author VARCHAR(30), reply_num INT(4),\
         good BOOL, PRIMARY KEY (id)) CHARSET=utf8mb4;")
     tx.execute("create table if not exists post(\
         id BIGINT(12), floor INT(4), author VARCHAR(30), content TEXT,\

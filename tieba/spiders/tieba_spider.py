@@ -14,10 +14,16 @@ class TiebaSpider(scrapy.Spider):
     see_lz = False
     
     def parse(self, response): #forum parser
+
+        pre_titleName =response.xpath('//head/title//text()').extract_first()
+        print("head中的贴吧名:",pre_titleName)
+        titleName=pre_titleName.split('-')[0]
+
         for sel in response.xpath('//li[contains(@class, "j_thread_list")]'):
             data = json.loads(sel.xpath('@data-field').extract_first())
             item = ThreadItem()
             item['id'] = data['id']
+            item['tbName']=titleName
             item['author'] = data['author_name']
             item['reply_num'] = data['reply_num']
             item['good'] = data['is_good']

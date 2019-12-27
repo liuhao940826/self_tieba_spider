@@ -104,11 +104,7 @@ class Command(crawl.Command):
             for tbname in tbnameList:
                 print("当前tbname:", tbname)
                 print("贴吧名:", tbname, "数据库名:", dbnameList[0])
-
-                tbnames = cfg.config['DEFAULT_TIEBA']
-                tbnames.append(tbname)
                 self.loadNewConfigDbNameAndTbName(cfg, tbname, dbnameDict, dbnameList[0])
-
                 self.process_config(tbname, dbnameList[0], cfg, opts)
             print("批量执行多个爬虫..........")
             self.crawler_process.start()

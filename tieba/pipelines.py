@@ -65,8 +65,8 @@ class TiebaPipeline(object):
         return item
         
     def insert_thread(self, tx, item):
-        sql = "replace into thread values(%s, %s, %s, %s, %s)"
-        params = (item["id"], item["title"], item['author'], item['reply_num'], item['good'])
+        sql = "replace into thread values(%s,%s, %s, %s, %s, %s)"
+        params = (item["id"], item["tbName"],item["title"], item['author'], item['reply_num'], item['good'])
         tx.execute(sql, params)     
         
     def insert_post(self, tx, item):
