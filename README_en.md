@@ -107,9 +107,8 @@ Crawling time is mainly decided by the network. Belowing data are for your refer
 
 |Tieba Name|Thread Num|Reply Num|Comment Num|Time(s) |
 |----------|----------|---------|-----------|--------|
-|pandakill |3638      |41221    |50206      |222.2   |
-|lyingman  |11290     |122662   |126670     |718.9   |
-|仙剑五外传|67356     |1262705  |807435     |7188    |
+|庆余年 |3638      |41221    |50206      |222.2   |
+|处对象吧  |11290     |122662   |126670     |718.9   |
 
 ## References
 [Scrapy 1.0 文档][1]
