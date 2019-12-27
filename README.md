@@ -133,7 +133,6 @@ scrapy run 仙剑五外传 -gs -p 5 12 -f thread_filter
 
 [mysql升级8.0后遇到的坑][6]
 
-有什么问题或建议欢迎到[我的主页][7]留言~
 
   [1]: http://scrapy-chs.readthedocs.io/zh_CN/1.0/
   [2]: https://coding.net/u/fmyl/p/scrapy
@@ -141,4 +140,3 @@ scrapy run 仙剑五外传 -gs -p 5 12 -f thread_filter
   [4]: http://www.cnblogs.com/numbbbbb/p/3434519.html
   [5]: https://github.com/twisted/twisted/blob/twisted-16.5.0/src/twisted/enterprise/adbapi.py
   [6]: https://www.shiqidu.com/d/358
-  [7]: https://aqua.hk.cn/Programming/oew0fr/
