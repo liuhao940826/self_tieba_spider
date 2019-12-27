@@ -142,8 +142,11 @@ class Command(crawl.Command):
     # 组装新的参数进入config.json之后读取新的文件
     def loadNewConfigDbNameAndTbName(self,cfg,tbname,dbnames,dbname):
         tbnames = cfg.config['DEFAULT_TIEBA']
-        tbnames.append(tbname)
-        dbnames.setdefault(tbname, dbname)
+        if tbname not in tbnames:
+            tbnames.append(tbname)
+        #数据库配置的存放
+        dbnames[tbname] = dbname
+        # dbnames.setdefault(tbname, dbname)
 
     # 加载配置文件
     def loadConfig(self, cfg, opts, dbname):
