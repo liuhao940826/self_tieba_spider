@@ -34,7 +34,7 @@ class ScrapyProducerKafkaPipeline(object):
         # 初始化client
         self._client = KafkaClient(hosts=kafka_ip_port)
         topic = settings['KAFKA_TOPIC_NAME'].encode(encoding="UTF-8")
-        print("kafka消费topic:",topic)
+        print("kafka,初始化topic:",topic)
 
         # 初始化Producer 需要把topic name变成字节的形式
         self._producer = \
