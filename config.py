@@ -15,7 +15,7 @@ class config:
 
     def __init__(self):
         with open(self.config_path, 'r', encoding='utf8') as f:
-            self.config = json.loads(f.read())
+             self.config = json.loads(f.read())
             # loads后若有中文 为unicode
     def save(self):
         with open(self.config_path, 'wb') as f:
