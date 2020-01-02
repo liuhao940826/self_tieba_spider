@@ -12,14 +12,14 @@ ROBOTSTXT_OBEY = True
 # See http://scrapy.readthedocs.org/en/latest/topics/item-pipeline.html
 
 ITEM_PIPELINES = {
-    'tieba.kafka_producer_pipelines.ScrapyProducerKafkaPipeline': 300,
-    'tieba.kafka_consumer_pipelines.ScrapyConsumerKafkaPipeline': 300
-    # 'tieba.pipelines.TiebaPipeline': 300,
+    # 'tieba.kafka_producer_pipelines.ScrapyProducerKafkaPipeline': 300,
+    # 'tieba.kafka_consumer_pipelines.ScrapyConsumerKafkaPipeline': 300
+    'tieba.pipelines.TiebaPipeline': 300,
 }
 
 LOG_LEVEL = 'WARNING'
 
 COMMANDS_MODULE = 'tieba.commands'
 
-KAFKA_SERVER = '192.168.1.152:9092'
-KAFKA_TOPIC_NAME = 'TIEBA'
+# KAFKA_SERVER = '192.168.1.152:9092'
+# KAFKA_TOPIC_NAME = 'TIEBA'
