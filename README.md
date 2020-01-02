@@ -140,3 +140,10 @@ scrapy run 仙剑五外传 -gs -p 5 12 -f thread_filter
   [4]: http://www.cnblogs.com/numbbbbb/p/3434519.html
   [5]: https://github.com/twisted/twisted/blob/twisted-16.5.0/src/twisted/enterprise/adbapi.py
   [6]: https://www.shiqidu.com/d/358
+
+
+##kafka 中return '<SimpleProducer batch=%s>' % self.async 报错  
+##python2.7版本使用以下代码向Kafka发送数据时正常，但是在python3.7版本使用Kafka报错：return '' % self.async；
+##原因是async是python3.7版本的关键字引起的，通过命令执行pip install kafka-python就可以解决这个问题。
+pip install kafka-python\
+

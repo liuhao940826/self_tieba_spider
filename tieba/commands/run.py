@@ -121,7 +121,7 @@ class Command(crawl.Command):
             self.loadConfig(cfg, opts, dbname)
 
         else:
-            dbnameDict = config['MYSQL_DBNAME']
+            dbnameDict = cfg.config['MYSQL_DBNAME']
             print("dbname", dbnameDict)
             # 如果是输入的db喝tb直接用 分库逻辑
             for index in range(len(tbnameList)):
