@@ -59,7 +59,7 @@ class TiebaSpider(scrapy.Spider):
             url = 'http://tieba.baidu.com/p/%d' % data['id']
             if self.see_lz:
                 url += '?see_lz=1'
-            yield scrapy.Request(url, callback = self.parse_post,  meta = meta)
+            yield scrapy.Request(url, callback=self.parse_post,  meta=meta)
         next_page = response.xpath('//a[@class="next pagination-item "]/@href')
         self.cur_page += 1
         if next_page:
@@ -75,6 +75,7 @@ class TiebaSpider(scrapy.Spider):
                 item = PostItem()
                 item['id'] = data['content']['post_id']
                 item['author'] = data['author']['user_name']
+                item['author_id'] = data['author']['user_id']
                 item['comment_num'] = data['content']['comment_num']
                 if item['comment_num'] > 0:
                     has_comment = True
@@ -110,6 +111,7 @@ class TiebaSpider(scrapy.Spider):
             for comment in comments:
                 item = CommentItem()
                 item['id'] = comment['comment_id']
+                item['author_id'] = comment['user_id']
                 item['author'] = comment['username']
                 item['post_id'] = comment['post_id']
                 item['content'] = helper.parse_content(comment['content'])

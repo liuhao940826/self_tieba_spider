@@ -77,11 +77,11 @@ def init_database(host, user, passwd, dbname):
         id BIGINT(12), tb_name VARCHAR(100) ,title VARCHAR(100), author_id VARCHAR(48) ,author VARCHAR(30), reply_num INT(4),\
         good BOOL, PRIMARY KEY (id)) CHARSET=utf8mb4;")
     tx.execute("create table if not exists post(\
-        id BIGINT(12), floor INT(4), author VARCHAR(30), content TEXT,\
+        id BIGINT(12), floor INT(4), author_id varchar(48),author VARCHAR(30), content TEXT,\
         time DATETIME, comment_num INT(4), thread_id BIGINT(12),PRIMARY KEY (id),\
         FOREIGN KEY (thread_id) REFERENCES thread(id)) CHARSET=utf8mb4;")
     tx.execute("create table if not exists comment(id BIGINT(12),\
-        author VARCHAR(30), content TEXT, time DATETIME, post_id BIGINT(12),\
+        author_id varchar(48),author VARCHAR(30), content TEXT, time DATETIME, post_id BIGINT(12),\
         PRIMARY KEY (id), FOREIGN KEY (post_id) REFERENCES post(id)) CHARSET=utf8mb4;")
     db.commit()
     db.close()

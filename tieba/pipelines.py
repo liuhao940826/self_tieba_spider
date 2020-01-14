@@ -70,15 +70,15 @@ class TiebaPipeline(object):
         tx.execute(sql, params)     
         
     def insert_post(self, tx, item):
-        sql = "replace into post values(%s, %s, %s, %s, %s, %s, %s)"
-        params = (item["id"], item["floor"], item['author'], item['content'], 
+        sql = "replace into post values(%s, %s, %s,%s, %s, %s, %s, %s)"
+        params = (item["id"], item["floor"], item['author_id'], item['author'], item['content'],
             item['time'], item['comment_num'], item['thread_id'])
         tx.execute(sql, params)
         
     def insert_comment(self, tx, item):
         tx.execute('set names utf8mb4')
-        sql = "replace into comment values(%s, %s, %s, %s, %s)"
-        params = (item["id"], item['author'], item['content'], item['time'], item['post_id'])
+        sql = "replace into comment values(%s, %s,%s, %s, %s, %s)"
+        params = (item["id"], item['author_id'], item['author'], item['content'], item['time'], item['post_id'])
         tx.execute(sql, params)
         
     #错误处理方法
