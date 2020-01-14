@@ -11,7 +11,8 @@ import scrapy
 class ThreadItem(scrapy.Item):
     name = 'thread'
     id = scrapy.Field()
-    tbName =scrapy.Field()
+    author_id = scrapy.Field()
+    tbName = scrapy.Field()
     title = scrapy.Field()
     author = scrapy.Field()
     reply_num = scrapy.Field()

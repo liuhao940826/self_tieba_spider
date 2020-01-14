@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+import pandas as pd
 import scrapy
 import json
 from tieba.items import ThreadItem, PostItem, CommentItem
@@ -19,10 +19,29 @@ class TiebaSpider(scrapy.Spider):
         print("head中的贴吧名:",pre_titleName)
         titleName=pre_titleName.split('-')[0]
 
-        for sel in response.xpath('//li[contains(@class, "j_thread_list")]'):
+        thread_list = response.xpath('//li[contains(@class, "j_thread_list")]')
+
+        thread_author_list = response.xpath('//span[contains(@class, "tb_icon_author")]')
+
+        fileName = '测试-日志.html'  # 爬取的内容存入文件，文件名为：作者-语录.txt
+
+        f = open(fileName, "wb")  # 追加写入文件
+        f.write(response.body)  # 写入名言内容
+        f.close()  # 关闭文件操作
+
+        for index, sel in enumerate(thread_list):
             data = json.loads(sel.xpath('@data-field').extract_first())
+
+            user_data = thread_author_list.xpath('@data-field').extract()[index]
+
+            print("用户id信息:{}".format(user_data))
+            print("用户名字:{}".format(data['author_name']))
+            print("用户id的data类型:{}".format(type(user_data)))
+
+            author_data = json.loads(user_data)
             item = ThreadItem()
             item['id'] = data['id']
+            item['author_id'] = author_data['user_id']
             item['tbName']=titleName
             item['author'] = data['author_name']
             item['reply_num'] = data['reply_num']
@@ -47,7 +66,7 @@ class TiebaSpider(scrapy.Spider):
             if self.cur_page <= self.end_page:
                 yield self.make_requests_from_url('http:'+next_page.extract_first())
             
-    def parse_post(self, response): 
+    def parse_post(self, response):
         meta = response.meta
         has_comment = False
         for floor in response.xpath("//div[contains(@class, 'l_post')]"):
