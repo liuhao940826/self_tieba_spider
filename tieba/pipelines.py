@@ -58,7 +58,9 @@ class TiebaPipeline(object):
         _conditional_insert = {
             'thread': self.insert_thread, 
             'post': self.insert_post, 
-            'comment': self.insert_comment
+            'comment': self.insert_comment,
+            # 放到另一个爬虫从用户的详情页去获取
+            # 'outerInfo': self.user_outer_Info
         }
         query = self.dbpool.runInteraction(_conditional_insert[item.name], item)
         query.addErrback(self._handle_error, item, spider)
@@ -70,8 +72,8 @@ class TiebaPipeline(object):
         tx.execute(sql, params)     
         
     def insert_post(self, tx, item):
-        sql = "replace into post values(%s, %s, %s,%s, %s, %s, %s, %s)"
-        params = (item["id"], item["floor"], item['author_id'], item['author'], item['content'],
+        sql = "replace into post values(%s, %s, %s,%s,%s, %s, %s, %s, %s)"
+        params = (item["id"], item["floor"], item['user_detail_href'], item['author_id'], item['author'], item['content'],
             item['time'], item['comment_num'], item['thread_id'])
         tx.execute(sql, params)
         
@@ -80,7 +82,12 @@ class TiebaPipeline(object):
         sql = "replace into comment values(%s, %s,%s, %s, %s, %s)"
         params = (item["id"], item['author_id'], item['author'], item['content'], item['time'], item['post_id'])
         tx.execute(sql, params)
-        
+
+    # def user_outer_Info(self,tx,item):
+    #     sql = "replace into user_outer_Info values(%s, %s,%s, %s, %s, %s)"
+    #     params = (0, item['author_id'], item['author'], item['content'], item['time'], item['post_id'])
+    #     tx.execute(sql, params)
+
     #错误处理方法
     def _handle_error(self, fail, item, spider):
         spider.logger.error('Insert to database error: %s \

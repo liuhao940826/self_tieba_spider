@@ -2,7 +2,7 @@
 import pandas as pd
 import scrapy
 import json
-from tieba.items import ThreadItem, PostItem, CommentItem
+from tieba.items import ThreadItem, PostItem, CommentItem, UserDetailInfo
 from . import helper
 import time
 
@@ -12,7 +12,10 @@ class TiebaSpider(scrapy.Spider):
     end_page = 9999
     filter = None
     see_lz = False
-    
+
+    const_active_tieba = 'active_tieba'
+
+
     def parse(self, response): #forum parser
 
         pre_titleName =response.xpath('//head/title//text()').extract_first()
@@ -46,6 +49,8 @@ class TiebaSpider(scrapy.Spider):
             item['author'] = data['author_name']
             item['reply_num'] = data['reply_num']
             item['good'] = data['is_good']
+            print("用户详情页跳转标识:{}".format(data['author_portrait']))
+
             if not item['good']:
                 item['good'] = False
             from scrapy.shell import inspect_response
@@ -53,13 +58,17 @@ class TiebaSpider(scrapy.Spider):
             if self.filter and not self.filter(item["id"], item["title"], item['author'], item['reply_num'], item['good']):
                 continue
             #filter过滤掉的帖子及其回复均不存入数据库
-                
             yield item
-            meta = {'thread_id': data['id'], 'page': 1}
+            meta = {'thread_id': data['id'], 'page': 1, self.const_active_tieba: {titleName: 0}}
             url = 'http://tieba.baidu.com/p/%d' % data['id']
             if self.see_lz:
                 url += '?see_lz=1'
+            print("跳转对应的详情页URL:{}".format(url))
             yield scrapy.Request(url, callback=self.parse_post,  meta=meta)
+            #获取对应的详情页信息
+            # print("调用用户详情.......................")
+            # yield scrapy.Request(url, callback=self.parse_user_detail, meta=meta)
+
         next_page = response.xpath('//a[@class="next pagination-item "]/@href')
         self.cur_page += 1
         if next_page:
@@ -69,13 +78,33 @@ class TiebaSpider(scrapy.Spider):
     def parse_post(self, response):
         meta = response.meta
         has_comment = False
-        for floor in response.xpath("//div[contains(@class, 'l_post')]"):
+        # total_commont_floor_num = 0
+
+        # 递归调用时候增加总数 放在另一个服务里面去统计
+        # if meta.has_key('total_commont_floor_num'):
+        #     print("已经有了统计的总数:{}".format(meta['total_commont_floor_num']))
+        #     total_commont_floor_num = meta['total_commont_floor_num']
+
+        floor_list = response.xpath("//div[contains(@class, 'l_post')]")
+
+        post_floor_userinfo_list = response.xpath('//a[contains(@class, "p_author_name")]//@href')
+
+        print("楼层数组的长度:{}".format(len(floor_list)))
+        print("楼层用户的集合的长度:{}".format(len(post_floor_userinfo_list)))
+
+        for index, floor in enumerate(floor_list):
             if not helper.is_ad(floor):
+                # total_commont_floor_num  +=1
                 data = json.loads(floor.xpath("@data-field").extract_first())
                 item = PostItem()
                 item['id'] = data['content']['post_id']
                 item['author'] = data['author']['user_name']
                 item['author_id'] = data['author']['user_id']
+                #获取用户逇跳转链接
+                user_detail_href ="https://tieba.baidu.com" + post_floor_userinfo_list.extract()[index]
+                print("获取:{}".format(user_detail_href))
+                item['user_detail_href'] = user_detail_href
+                #评论数
                 item['comment_num'] = data['content']['comment_num']
                 if item['comment_num'] > 0:
                     has_comment = True
@@ -93,6 +122,7 @@ class TiebaSpider(scrapy.Spider):
                     item['time'] = floor.xpath(".//span[@class='tail-info']")\
                     .re_first(r'[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}')
                 yield item
+        # meta['total_commont_floor_num'] = total_commont_floor_num
         if has_comment:
             url = "http://tieba.baidu.com/p/totalComment?tid=%d&fid=1&pn=%d" % (meta['thread_id'], meta['page'])
             if self.see_lz:
@@ -106,9 +136,21 @@ class TiebaSpider(scrapy.Spider):
 
     def parse_comment(self, response):
         comment_list = json.loads(response.body.decode('utf8'))['data']['comment_list']
+
+        meta = response.meta
+
+        # total_commont_floor_num = 0
+
+        # 递归调用时候增加总数
+        # if meta.has_key('total_commont_floor_num'):
+        #     print("已经有了统计的总数:{}".format(meta['total_commont_floor_num']))
+        #     total_commont_floor_num = meta['total_commont_floor_num']
+
         for value in comment_list.values():
             comments = value['comment_info']
             for comment in comments:
+                #添加总共的评论
+                # total_commont_floor_num+=1
                 item = CommentItem()
                 item['id'] = comment['comment_id']
                 item['author_id'] = comment['user_id']
@@ -117,4 +159,67 @@ class TiebaSpider(scrapy.Spider):
                 item['content'] = helper.parse_content(comment['content'])
                 item['time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(comment['now_time']))
                 yield item
+
+    #获取对应的详情页信息
+    def parse_user_detail(self, response):
+
+        print("用户详情回调被执行....................")
+        meta = response.meta
+
+        userinfo_userdata = response.xpath('.//div[contains(@class, "userinfo_userdata")]/span').extract()
+
+        nick_name = response.xpath('.//span[@class="userinfo_username"]/text()').extract()
+
+        print("获取用户的昵称:{}".format(nick_name))
+        print("获取用户详情信息:{}".format(userinfo_userdata))
+
+        # 获取对应的详情页信息
+        userinfo_userdata = response.xpath('.//div[contains(@class, "userinfo_userdata")]//span/text()').extract()
+
+        print("获取用户详情信息:{}".format(userinfo_userdata))
+
+        user_name  =userinfo_userdata[0].split(":")[-1]
+        tieba_age = userinfo_userdata[2].split(":")[-1]
+        post_num = userinfo_userdata[-2].split(":")[-1]
+
+        print("获取用户的用户名:{}".format(userinfo_userdata[0].split(":")[-1]))
+        print("用户的发帖数量:{}".format(post_num))
+        print("用户的吧龄:{}".format(tieba_age))
+
+        post_time = response.xpath('.//div[contains(@class, "n_post_time")]/text()').extract()
+        print("获取用户帖子发布时间集合:{}".format(post_time))
+        tieba_href = response.xpath('.//div[contains(@class, "thread_name")]//a/@href').extract()
+
+        print("获取用户详情页帖子的跳转href:{}".format(tieba_href))
+
+        tieba_title_list = response.xpath('.//div[contains(@class, "thread_name")]//a[@class="n_name"]//text()').extract()
+
+        print("获取用户详情页帖子的名字:{}".format(tieba_title_list))
+
+        #如果可以看到的发帖的内容不为空的话就拼接活跃贴吧
+        if tieba_title_list is not None and len(tieba_title_list)>0:
+            for tieba_title in tieba_title_list:
+                meta[self.const_active_tieba][tieba_title] = 0
+
+        # TODO 暂时没处理分页的 那个东西暂时搞不到
+        # 插入对应的用户外部信息
+        item = UserDetailInfo()
+        item['user_name'] = user_name
+        item['tieba_age'] = tieba_age
+        item['post_num'] = post_num
+        item_active_tieba =",".join(meta[self.const_active_tieba])
+        print("item_active_tieba:的内容{}".format(item_active_tieba))
+        item['active_tieba'] =item_active_tieba
+        yield item
+
+        user_detail_commont_detail_url ='https://tieba.baidu.com/'
+
+        #调用到具体帖子的详情页
+        if tieba_href is not  None  and  len(tieba_href)>0:
+            yield scrapy.Request(user_detail_commont_detail_url+tieba_href, callback=self.parse_post, meta=meta)
+
+
+
+
+
 

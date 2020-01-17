@@ -22,6 +22,7 @@ class PostItem(scrapy.Item):
     name = 'post'
     id = scrapy.Field()
     floor = scrapy.Field()
+    user_detail_href = scrapy.Field()
     author_id = scrapy.Field()
     author = scrapy.Field()
     content = scrapy.Field()
@@ -37,3 +38,16 @@ class CommentItem(scrapy.Item):
     content = scrapy.Field()
     time = scrapy.Field()
     post_id = scrapy.Field()
+
+class UserDetailInfo(scrapy.Item):
+    name ='outerInfo'
+    id = scrapy.Field()
+    channel_type = scrapy.Field()
+    user_name = scrapy.Field()
+    tieba_age = scrapy.Field()
+    post_num = scrapy.Field()
+    active_tieba = scrapy.Field()
+
+
+
+
