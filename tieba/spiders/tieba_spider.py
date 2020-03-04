@@ -86,7 +86,7 @@ class TiebaSpider(scrapy.Spider):
         #     total_commont_floor_num = meta['total_commont_floor_num']
 
         floor_list = response.xpath("//div[contains(@class, 'l_post')]")
-
+        #vip 用户会有 vip_red 在class 中 这边用contains
         post_floor_userinfo_list = response.xpath('//a[contains(@class, "p_author_name")]//@href')
 
         print("楼层数组的长度:{}".format(len(floor_list)))
@@ -159,67 +159,5 @@ class TiebaSpider(scrapy.Spider):
                 item['content'] = helper.parse_content(comment['content'])
                 item['time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(comment['now_time']))
                 yield item
-
-    #获取对应的详情页信息
-    def parse_user_detail(self, response):
-
-        print("用户详情回调被执行....................")
-        meta = response.meta
-
-        userinfo_userdata = response.xpath('.//div[contains(@class, "userinfo_userdata")]/span').extract()
-
-        nick_name = response.xpath('.//span[@class="userinfo_username"]/text()').extract()
-
-        print("获取用户的昵称:{}".format(nick_name))
-        print("获取用户详情信息:{}".format(userinfo_userdata))
-
-        # 获取对应的详情页信息
-        userinfo_userdata = response.xpath('.//div[contains(@class, "userinfo_userdata")]//span/text()').extract()
-
-        print("获取用户详情信息:{}".format(userinfo_userdata))
-
-        user_name  =userinfo_userdata[0].split(":")[-1]
-        tieba_age = userinfo_userdata[2].split(":")[-1]
-        post_num = userinfo_userdata[-2].split(":")[-1]
-
-        print("获取用户的用户名:{}".format(userinfo_userdata[0].split(":")[-1]))
-        print("用户的发帖数量:{}".format(post_num))
-        print("用户的吧龄:{}".format(tieba_age))
-
-        post_time = response.xpath('.//div[contains(@class, "n_post_time")]/text()').extract()
-        print("获取用户帖子发布时间集合:{}".format(post_time))
-        tieba_href = response.xpath('.//div[contains(@class, "thread_name")]//a/@href').extract()
-
-        print("获取用户详情页帖子的跳转href:{}".format(tieba_href))
-
-        tieba_title_list = response.xpath('.//div[contains(@class, "thread_name")]//a[@class="n_name"]//text()').extract()
-
-        print("获取用户详情页帖子的名字:{}".format(tieba_title_list))
-
-        #如果可以看到的发帖的内容不为空的话就拼接活跃贴吧
-        if tieba_title_list is not None and len(tieba_title_list)>0:
-            for tieba_title in tieba_title_list:
-                meta[self.const_active_tieba][tieba_title] = 0
-
-        # TODO 暂时没处理分页的 那个东西暂时搞不到
-        # 插入对应的用户外部信息
-        item = UserDetailInfo()
-        item['user_name'] = user_name
-        item['tieba_age'] = tieba_age
-        item['post_num'] = post_num
-        item_active_tieba =",".join(meta[self.const_active_tieba])
-        print("item_active_tieba:的内容{}".format(item_active_tieba))
-        item['active_tieba'] =item_active_tieba
-        yield item
-
-        user_detail_commont_detail_url ='https://tieba.baidu.com/'
-
-        #调用到具体帖子的详情页
-        if tieba_href is not  None  and  len(tieba_href)>0:
-            yield scrapy.Request(user_detail_commont_detail_url+tieba_href, callback=self.parse_post, meta=meta)
-
-
-
-
 
 
