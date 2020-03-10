@@ -12,7 +12,7 @@ class Command(crawl.Command):
         return "<tieba_name> <database_name>"
 
     def short_desc(self):
-        return "Crawl tieba"
+        return "Crawl baidu_tieba"
 
     def long_desc(self):
         return "Crawl baidu tieba data to a MySQL database."
@@ -69,9 +69,9 @@ class Command(crawl.Command):
                 args[i] = args[i].decode("utf8")
 
         # 设置配置数据库的
-        self.settings.set('MYSQL_HOST', cfg.config['MYSQL_HOST'])
-        self.settings.set('MYSQL_USER', cfg.config['MYSQL_USER'])
-        self.settings.set('MYSQL_PASSWD', cfg.config['MYSQL_PASSWD'])
+        # self.settings.set('MYSQL_HOST', cfg.config['MYSQL_HOST'])
+        # self.settings.set('MYSQL_USER', cfg.config['MYSQL_USER'])
+        # self.settings.set('MYSQL_PASSWD', cfg.config['MYSQL_PASSWD'])
 
         if len(args) == 1:
             # 单个参数多个tbname,但是部分库或者
@@ -82,91 +82,83 @@ class Command(crawl.Command):
         else:
             # 走配置文件
             print("走配置文件的逻辑.................")
-            dbname = list(cfg.config['MYSQL_DBNAME'].values())[0]
-            self.loadConfig(cfg, opts, dbname)
+            fullcollectFlag = list(cfg.config['FULLCOLLECT_FLAG'].values())[0]
+            self.loadConfig(cfg, opts, fullcollectFlag)
 
-    # 单个参数的处理
     def singleton_arg(self, args, cfg, opts):
         # 获取数据库的名字,不拆库
-        dbnameList = list(cfg.config['MYSQL_DBNAME'].values())
+        fullcollectFlagList = list(cfg.config['FULLCOLLECT_FLAG'].values())
 
-        dbnameDict=cfg.config['MYSQL_DBNAME']
-        print("数据库名字dbName", dbnameList[0])
+        fullcollectFlagDict = cfg.config['FULLCOLLECT_FLAG']
+        print("是否全量更新标识", fullcollectFlagList[0])
         # 获取传入的参数
         tbnames = args[0]
         # 切割传入的参数  支持多个贴吧名
         tbnameList = tbnames.split(',')
         print("tbnameList的长度:", len(tbnameList))
         if tbnameList is None or len(tbnameList) < 1:
-            self.loadConfig(cfg=cfg, opts=opts, dbname=dbnameList[0])
+            self.loadConfig(cfg=cfg, opts=opts, fullcollectFlag=fullcollectFlagList[0])
         else:
             # 遍历参数的贴吧名
             for tbname in tbnameList:
                 print("当前tbname:", tbname)
-                print("贴吧名:", tbname, "数据库名:", dbnameList[0])
-                self.loadNewConfigDbNameAndTbName(cfg, tbname, dbnameDict, dbnameList[0])
-                self.process_config(tbname, dbnameList[0], cfg, opts)
+                print("贴吧名:", tbname, "采集标识:", fullcollectFlagList[0])
+                self.loadNewConfigfullcollectFlagAndTbName(cfg, tbname, fullcollectFlagDict, fullcollectFlagList[0])
+                self.process_config(tbname, fullcollectFlagList[0], cfg, opts)
             print("批量执行多个爬虫..........")
             self.crawler_process.start()
+
+    # 组装新的参数进入config.json之后读取新的文件
+    def loadNewConfigfullcollectFlagAndTbName(self, cfg , tbname , fullcollectFlagDict , fullcollectFlag):
+        tbnames = cfg.config['DEFAULT_TIEBA']
+        if tbname not in tbnames:
+            tbnames.append(tbname)
+        #查询标识数据存放
+        fullcollectFlagDict[tbname] = fullcollectFlag
+        # dbnames.setdefault(tbname, dbname)
+
 
     # 多个参数的处理,如果参数大于2个按照传参的来处理数据库分库逻辑
     def prototype_arg(self, args, cfg, opts):
         # 获取对应的贴吧集合和数据库集合
         tbnameList = args[0].split(',')
-        dbnameList = args[1].split(',')
+        fullcollectFlagList = args[1].split(',')
 
-        if len(tbnameList) != len(dbnameList):
+        if len(tbnameList) != len(fullcollectFlagList):
             # 多参数读取配置文件
-            dbname = list(cfg.config['MYSQL_DBNAME'].values())[0]
-            self.loadConfig(cfg, opts, dbname)
+            fullcollectFlag = list(cfg.config['FULLCOLLECT_FLAG'].values())[0]
+            self.loadConfig(cfg, opts, fullcollectFlag)
 
         else:
-            dbnameDict = cfg.config['MYSQL_DBNAME']
-            print("dbname", dbnameDict)
+            fullcollectFlagDict = cfg.config['FULLCOLLECT_FLAG']
+            print("fullcollectFlagDict", fullcollectFlagDict)
             # 如果是输入的db喝tb直接用 分库逻辑
             for index in range(len(tbnameList)):
                 tbname = tbnameList[index]
-                dbname = dbnameList[index]
+                fullcollectFlag = fullcollectFlagList[index]
                 # 执行配置
-                print("贴吧名:", tbname, "数据库名:", dbname)
+                print("贴吧名:", tbname, "采集标识:", fullcollectFlag)
                 # 拼接和处理新的数据库名字和贴吧名字
-                self.loadNewConfigDbNameAndTbName(cfg,tbname,dbnameDict,dbname)
-                self.process_config(tbname, dbname, cfg, opts)
+                self.loadNewConfigfullcollectFlagAndTbName(cfg, tbname, fullcollectFlagDict, fullcollectFlag)
+                self.process_config(tbname, fullcollectFlag, cfg, opts)
             print("统一执行..........")
             self.crawler_process.start()
 
-    # 组装新的参数进入config.json之后读取新的文件
-    def loadNewConfigDbNameAndTbName(self,cfg,tbname,dbnames,dbname):
-        tbnames = cfg.config['DEFAULT_TIEBA']
-        if tbname not in tbnames:
-            tbnames.append(tbname)
-        #数据库配置的存放
-        dbnames[tbname] = dbname
-        # dbnames.setdefault(tbname, dbname)
-
-    # 加载配置文件
-    def loadConfig(self, cfg, opts, dbname):
-        # 如果没有 读取项目默认配置文件的贴吧名
-        # 存入数组贴吧名
-        tbnames = cfg.config['DEFAULT_TIEBA']
-        for tbname in tbnames:
-            self.process_config(tbname, dbname, cfg, opts)
-        print("统一执行..........")
-        self.crawler_process.start()
-
     # 执行处理配置
-    def process_config(self, tbname, dbname, cfg, opts):
+    def process_config(self, tbname, fullcollectFlag, cfg, opts):
         self.settings.set('TIEBA_NAME', tbname, priority='cmdline')
-        self.settings.set('MYSQL_DBNAME', dbname, priority='cmdline')
+        # self.settings.set('MYSQL_DBNAME', dbname, priority='cmdline')
+
+        self.settings.set('FULLCOLLECT_FLAG', fullcollectFlag, priority='cmdline')
         # 初始化数据库
-        print("开始初始化数据库配置........")
-        config.init_database(cfg.config['MYSQL_HOST'], cfg.config['MYSQL_USER'], cfg.config['MYSQL_PASSWD'],
-                             dbname)
-        print("初始化数据库配置完成........")
-        log = config.log(tbname, dbname, self.settings['BEGIN_PAGE'], opts.good_only, opts.see_lz)
+        # print("开始初始化数据库配置........")
+        # config.init_database(cfg.config['MYSQL_HOST'], cfg.config['MYSQL_USER'], cfg.config['MYSQL_PASSWD'],
+        #                      dbname)
+        # print("初始化数据库配置完成........")
+        log = config.log(tbname, fullcollectFlag, self.settings['BEGIN_PAGE'], opts.good_only, opts.see_lz)
         self.settings.set('SIMPLE_LOG', log)
         #
-        self.crawler_process.crawl('tieba', **opts.spargs)
+        self.crawler_process.crawl('baidu_tieba', **opts.spargs)
         # self.crawler_process.join()
 
         # runner = CrawlerRunner()
@@ -180,3 +172,114 @@ class Command(crawl.Command):
         # reactor.run()  # the script will block here until the last crawl call is finished
         cfg.save()
         print("保存cfg..........")
+
+
+
+
+    # 加载配置文件
+    def loadConfig(self, cfg, opts, fullcollectFlag):
+        # 如果没有 读取项目默认配置文件的贴吧名
+        # 存入数组贴吧名
+        tbnames = cfg.config['DEFAULT_TIEBA']
+        for tbname in tbnames:
+            self.process_config(tbname, fullcollectFlag, cfg, opts)
+        print("统一执行..........")
+        self.crawler_process.start()
+
+
+
+    # # 单个参数的处理
+    # def singleton_arg(self, args, cfg, opts):
+    #     # 获取数据库的名字,不拆库
+    #     dbnameList = list(cfg.config['MYSQL_DBNAME'].values())
+    #
+    #     dbnameDict=cfg.config['MYSQL_DBNAME']
+    #     print("数据库名字dbName", dbnameList[0])
+    #     # 获取传入的参数
+    #     tbnames = args[0]
+    #     # 切割传入的参数  支持多个贴吧名
+    #     tbnameList = tbnames.split(',')
+    #     print("tbnameList的长度:", len(tbnameList))
+    #     if tbnameList is None or len(tbnameList) < 1:
+    #         self.loadConfig(cfg=cfg, opts=opts, dbname=dbnameList[0])
+    #     else:
+    #         # 遍历参数的贴吧名
+    #         for tbname in tbnameList:
+    #             print("当前tbname:", tbname)
+    #             print("贴吧名:", tbname, "数据库名:", dbnameList[0])
+    #             self.loadNewConfigDbNameAndTbName(cfg, tbname, dbnameDict, dbnameList[0])
+    #             self.process_config(tbname, dbnameList[0], cfg, opts)
+    #         print("批量执行多个爬虫..........")
+    #         self.crawler_process.start()
+    #
+    # # 多个参数的处理,如果参数大于2个按照传参的来处理数据库分库逻辑
+    # def prototype_arg(self, args, cfg, opts):
+    #     # 获取对应的贴吧集合和数据库集合
+    #     tbnameList = args[0].split(',')
+    #     dbnameList = args[1].split(',')
+    #
+    #     if len(tbnameList) != len(dbnameList):
+    #         # 多参数读取配置文件
+    #         dbname = list(cfg.config['MYSQL_DBNAME'].values())[0]
+    #         self.loadConfig(cfg, opts, dbname)
+    #
+    #     else:
+    #         dbnameDict = cfg.config['MYSQL_DBNAME']
+    #         print("dbname", dbnameDict)
+    #         # 如果是输入的db喝tb直接用 分库逻辑
+    #         for index in range(len(tbnameList)):
+    #             tbname = tbnameList[index]
+    #             dbname = dbnameList[index]
+    #             # 执行配置
+    #             print("贴吧名:", tbname, "数据库名:", dbname)
+    #             # 拼接和处理新的数据库名字和贴吧名字
+    #             self.loadNewConfigDbNameAndTbName(cfg,tbname,dbnameDict,dbname)
+    #             self.process_config(tbname, dbname, cfg, opts)
+    #         print("统一执行..........")
+    #         self.crawler_process.start()
+    #
+    # # 组装新的参数进入config.json之后读取新的文件
+    # def loadNewConfigDbNameAndTbName(self,cfg,tbname,dbnames,dbname):
+    #     tbnames = cfg.config['DEFAULT_TIEBA']
+    #     if tbname not in tbnames:
+    #         tbnames.append(tbname)
+    #     #数据库配置的存放
+    #     dbnames[tbname] = dbname
+    #     # dbnames.setdefault(tbname, dbname)
+    #
+    # # 加载配置文件
+    # def loadConfig(self, cfg, opts, dbname):
+    #     # 如果没有 读取项目默认配置文件的贴吧名
+    #     # 存入数组贴吧名
+    #     tbnames = cfg.config['DEFAULT_TIEBA']
+    #     for tbname in tbnames:
+    #         self.process_config(tbname, dbname, cfg, opts)
+    #     print("统一执行..........")
+    #     self.crawler_process.start()
+    #
+    # # 执行处理配置
+    # def process_config(self, tbname, dbname, cfg, opts):
+    #     self.settings.set('TIEBA_NAME', tbname, priority='cmdline')
+    #     self.settings.set('MYSQL_DBNAME', dbname, priority='cmdline')
+    #     # 初始化数据库
+    #     print("开始初始化数据库配置........")
+    #     config.init_database(cfg.config['MYSQL_HOST'], cfg.config['MYSQL_USER'], cfg.config['MYSQL_PASSWD'],
+    #                          dbname)
+    #     print("初始化数据库配置完成........")
+    #     log = config.log(tbname, dbname, self.settings['BEGIN_PAGE'], opts.good_only, opts.see_lz)
+    #     self.settings.set('SIMPLE_LOG', log)
+    #     #
+    #     self.crawler_process.crawl('tieba', **opts.spargs)
+    #     # self.crawler_process.join()
+    #
+    #     # runner = CrawlerRunner()
+    #
+    #     # @defer.inlineCallbacks
+    #     # def crawl():
+    #     #     yield runner.crawl(TiebaSpider,**opts.spargs)
+    #     #     reactor.stop()
+    #     #
+    #     # crawl()
+    #     # reactor.run()  # the script will block here until the last crawl call is finished
+    #     cfg.save()
+    #     print("保存cfg..........")

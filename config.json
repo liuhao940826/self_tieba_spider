@@ -1,13 +1,12 @@
 {
     "DEFAULT_TIEBA": [
         "处对象",
-        "庆余年"
+        "庆余年",
+        "肖战"
     ],
-    "MYSQL_PASSWD": "root",
-    "MYSQL_DBNAME": {
-        "处对象": "fall_in_love",
-        "庆余年": "fall_in_love"
-    },
-    "MYSQL_USER": "root",
-    "MYSQL_HOST": "localhost"
+    "FULLCOLLECT_FLAG": {
+        "处对象": true,
+        "庆余年": "fall_in_love",
+        "肖战": "True"
+    }
 }
