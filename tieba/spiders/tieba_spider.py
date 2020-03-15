@@ -1,8 +1,16 @@
 # -*- coding: utf-8 -*-
+import os
+import sys
+from datetime import date, datetime
+import datetime as dealDate
+
 import pandas as pd
 import scrapy
 import json
-from tieba.items import ThreadItem, PostItem, CommentItem, UserDetailInfo, TiebaInfo
+
+from dateutil.relativedelta import relativedelta
+
+from tieba.items import ThreadItem, PostItem, CommentItem, TiebaInfo, TiebaAccountInfo
 from . import helper
 import time
 
@@ -15,26 +23,34 @@ class TiebaSpider(scrapy.Spider):
 
     const_active_tieba = 'active_tieba'
 
-    # @classmethod
-    # def from_crawler(cls, crawler):
-    #     # This method is used by Scrapy to create your spiders.
-    #     s = cls()
-    #
-    #     machine_name = crawler.settings.(
-    #         'MACHINE_NAME', '')
-    #
-    #     return s
+    def __init__(self):
+        scrapy.Spider.__init__(self)
 
+        config_path = os.path.join(os.path.split(
+            os.path.realpath(__file__))[0], '../../config.json')
+
+        if not os.path.isfile(config_path):
+            sys.exit(u'当前路径：%s 不存在配置文件config.json' %
+                     (os.path.split(os.path.realpath(__file__))[0] + os.sep))
+        with open(config_path) as f:
+            config = json.loads(f.read())
+
+        #是否全量获取
+        fullCollection = config['FULLCOLLECT_FLAG']
+        print("setting的fullCollection的值:{}".format(fullCollection))
+        isTrue = fullCollection == str(True)
+
+        if isTrue:
+            self.since_date = str(date.today() - relativedelta(months=+3))
+        else:
+            self.since_date = '1900-1-1'
+        self.since_date += " 00:00:00"
 
     def parse(self, response): #forum parser
 
-        fullcollectFlag = self.settings["FULLCOLLECT_FLAG"]
-        print("采集标识的类型:{}".format(type(fullcollectFlag)))
-        print("采集数据的值:{}".format(fullcollectFlag))
-
         pre_titleName =response.xpath('//head/title//text()').extract_first()
         print("head中的贴吧名:",pre_titleName)
-        titleName=pre_titleName.split('-')[0]
+        titleName = pre_titleName.split('-')[0]
         #贴吧name就是贴吧id
         titleId = pre_titleName.split('-')[0]
         #关注数
@@ -43,11 +59,11 @@ class TiebaSpider(scrapy.Spider):
         card_infoNum = response.xpath('//span[contains(@class, "card_infoNum")]')
         print("关注数:{}".format(card_menNum))
         print("发帖数:{}".format(card_infoNum))
-        tiebaInfo =TiebaInfo();
+        tiebaInfo =TiebaInfo()
         #贴吧id 暂时跳转都是fw=贴吧名
-        tiebaInfo['outId']=titleId
-        #贴吧名
-        tiebaInfo['name']=titleName
+        tiebaInfo['outId'] = titleId
+        #贴吧名和贴吧id是一致的
+        tiebaInfo['tiebaName'] = titleName
         #关注数
         tiebaInfo['accountCount'] = card_menNum
         #帖子数
@@ -109,12 +125,7 @@ class TiebaSpider(scrapy.Spider):
             #处理帖子发帖时间请求的
             yield scrapy.Request(url, callback=self.parse_thread_time, cb_kwargs=dict(item))
 
-            # yield item
-            meta = {'threadId': data['id'], 'tiebaInfoId' : titleName ,'page': 1, self.const_active_tieba: {titleName: 0}}
-
-            print("跳转对应的详情页URL:{}".format(url))
-            yield scrapy.Request(url, callback=self.parse_post,  meta=meta)
-            #获取对应的详情页信息
+            #获取对应的详情页信息放入楼层处理
             # print("调用用户详情.......................")
             # yield scrapy.Request(url, callback=self.parse_user_detail, meta=meta)
 
@@ -125,7 +136,10 @@ class TiebaSpider(scrapy.Spider):
                 yield self.make_requests_from_url('http:'+next_page.extract_first())
 
     #使用cb_kwargs
-    def parse_thread_time(self,response,tiebaAccountId,outContentId,tiebaInfoId,content):
+    def parse_thread_time(self, response, tiebaAccountId, outContentId, tiebaInfoId, content):
+
+        print("1楼的传递参数: tiebaAccountId:{},outContentId:{} tiebaInfoId:{}"
+              .format(tiebaAccountId, outContentId, tiebaInfoId))
 
         item = ThreadItem()
         # 贴吧账号id
@@ -139,15 +153,53 @@ class TiebaSpider(scrapy.Spider):
 
         #请求一次url详情页url地址获取第一个楼层就是帖子本身
         first_floor = response.xpath("//div[contains(@class, 'l_post')]").extract_first()
+
+        first_data_field = response.xpath("//div[contains(@class, 'l_post')]/@data-field").extract_first()
+        # print("first_floor的信息:{}".format(first_floor))
         #获取第一个信息来获取发帖时间
-        first_floor_data = json.loads(first_floor.xpath("@data-field").extract_first())
+        # first_data_field = first_floor.xpath("//div/@data-field").extract_first()
+        print("first_data_field的信息:{}".format(first_data_field))
+        first_floor_data = json.loads(first_data_field)
+        #初始化时间
+        thread_time = None
+
         if 'date' in first_floor_data['content'].keys():
-            item['time'] = first_floor_data['content']['date']
+            thread_time = first_floor_data['content']['date']
+            item['publishTime'] =thread_time
             # 只有以前的帖子, data-field里面才有date
         else:
-            item['time'] = first_floor.xpath(".//span[@class='tail-info']") \
+            thread_time = first_floor.xpath(".//span[@class='tail-info']") \
                 .re_first(r'[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}')
+
+            item['publishTime'] = thread_time
+
+        print("时间:{}".format(thread_time))
+        #时间格式处理
+        thread_time = self.dealTime(thread_time)
+
+        created_at = datetime.strptime(
+            thread_time, "%Y-%m-%d %H:%M:%S")
+        since_date = datetime.strptime(
+            self.since_date, "%Y-%m-%d %H:%M:%S")
+
+        send_Flag = created_at < since_date
+
+        if send_Flag:
+            item['isSend'] = False
+        else:
+            item['isSend'] = True
         yield item
+
+        #帖子不发送了 楼层没必要获取了
+        if send_Flag:
+            # yield item
+            meta = {'threadId': outContentId, 'tiebaInfoId': tiebaInfoId, 'page': 1,
+                    self.const_active_tieba: {tiebaInfoId: 0}}
+
+            print("跳转帖子对应的楼层详情页URL:{}".format(response.url))
+            yield scrapy.Request(response.url, callback=self.parse_post, meta=meta)
+
+
 
     def parse_post(self, response):
         meta = response.meta
@@ -162,10 +214,10 @@ class TiebaSpider(scrapy.Spider):
 
         floor_list = response.xpath("//div[contains(@class, 'l_post')]")
         #vip 用户会有 vip_red 在class 中 这边用contains
-        post_floor_userinfo_list = response.xpath('//a[contains(@class, "p_author_name")]//@href')
+        # post_floor_userinfo_list = response.xpath('//a[contains(@class, "p_author_name")]//@href')
 
-        print("楼层数组的长度:{}".format(len(floor_list)))
-        print("楼层用户的集合的长度:{}".format(len(post_floor_userinfo_list)))
+
+        # print("楼层用户的集合的长度:{}".format(len(post_floor_userinfo_list)))
 
         for index, floor in enumerate(floor_list):
             if not helper.is_ad(floor):
@@ -186,26 +238,46 @@ class TiebaSpider(scrapy.Spider):
                 #贴吧id
                 item['tiebaInfoId'] = meta['tiebaInfoId']
                 # TODO 获取用户逇跳转链接 可以直接拿去扒数据
-                # user_detail_href ="https://tieba.baidu.com" + post_floor_userinfo_list.extract()[index]
                 # print("获取:{}".format(user_detail_href))
                 # item['user_detail_href'] = user_detail_href
                 #以前的帖子, data-field里面没有 threadId
                 item['threadId'] = meta['threadId']
                 #楼层信息
                 # item['floor'] = data['content']['post_no']
+
+                post_time = None
                 #只有以前的帖子, data-field里面才有date
                 if 'date' in data['content'].keys():
-                    item['publishTime'] = data['content']['date']
+                    post_time = data['content']['date']
+                    item['publishTime'] =post_time
                     #只有以前的帖子, data-field里面才有date
                 else:
-                    item['publishTime'] = floor.xpath(".//span[@class='tail-info']")\
+                    post_time = floor.xpath(".//span[@class='tail-info']")\
                     .re_first(r'[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}')
+                    item['publishTime'] =post_time
 
+                # 时间格式处理
+                post_time = self.dealTime(post_time)
+
+                created_at = datetime.strptime(
+                    post_time, "%Y-%m-%d %H:%M:%S")
+                since_date = datetime.strptime(
+                    self.since_date, "%Y-%m-%d %H:%M:%S")
+
+                if created_at < since_date:
+                    item['isSend'] = False
+                else:
+                    item['isSend'] = True
                 #处理评论
                 item['comment_num'] = data['content']['comment_num']
                 if item['comment_num'] > 0:
                     has_comment = True
                 yield item
+
+                user_detail_href ="https://tieba.baidu.com/home/main?id=" + data['author']['portrait']
+                #请求用户详情页
+                yield scrapy.Request(user_detail_href, callback=self.parse_user_detail, meta=meta, cb_kwargs=dict(item))
+
         # meta['total_commont_floor_num'] = total_commont_floor_num
         if has_comment:
             url = "http://tieba.baidu.com/p/totalComment?tid=%d&fid=1&pn=%d" % (meta['threadId'], meta['page'])
@@ -253,4 +325,76 @@ class TiebaSpider(scrapy.Spider):
                 item['postId'] = comment['post_id']
                 yield item
 
+    #用户详情页
+    def parse_user_detail(self, response, tiebaAccountId):
+        print("用户详情回调被执行....................")
+        meta = response.meta
+
+        item = TiebaAccountInfo()
+        # 用户id
+        item['outAccountId'] = tiebaAccountId
+        # 获取用户名
+        username = response.xpath('.//span[@class="userinfo_username "]/text()').extract()
+        print("获取用户名:{}".format(username))
+        # 用户名称
+        item['nickname'] = username
+        #url
+        item['tiebaUrl'] = response.url
+
+        # 获取对应的详情页信息
+        userinfo_userdata = response.xpath('.//div[contains(@class, "userinfo_userdata")]//span/text()').extract()
+        print("获取用户详情信息:{}".format(userinfo_userdata))
+
+        # user_name = userinfo_userdata[0].split(":")[-1]
+        # tieba_age = userinfo_userdata[2].split(":")[-1]
+        # post_num = userinfo_userdata[-2].split(":")[-1]
+        #这边位置更改过
+        tieba_age = userinfo_userdata[1].split(":")[-1]
+        post_num = userinfo_userdata[-1].split(":")[-1]
+
+        # print("获取用户的用户名:{}".format(userinfo_userdata[0].split(":")[-1]))
+        print("用户的发帖数量:{}".format(post_num))
+        print("用户的吧龄:{}".format(tieba_age))
+
+        item['postCount'] = post_num
+        item['commentCount'] = post_num
+
+        # 贴吧id
+        item['tiebaOutId'] = meta['tiebaInfoId']
+
+
+        # userinfo_userdata = response.xpath('.//div[contains(@class, "userinfo_userdata")]/span').extract()
+        # print("获取用户详情信息:{}".format(userinfo_userdata))
+
+
+
+        #这些暂时没用
+        # post_time = response.xpath('.//div[contains(@class, "n_post_time")]/text()').extract()
+        # print("获取用户帖子发布时间集合,和下面的对应:{}".format(post_time))
+        # tieba_href = response.xpath('.//div[contains(@class, "thread_name")]//a/@href').extract()
+        #
+        # print("获取用户详情页帖子的跳转href:{}".format(tieba_href))
+        #
+        # tieba_title_list = response.xpath(
+        #     './/div[contains(@class, "thread_name")]//a[@class="n_name"]//text()').extract()
+        #
+        # print("获取用户详情页帖子后缀的贴吧的名字:{}:{}".format(tieba_title_list))
+
+        # 如果可以看到的发帖的内容不为空的话就拼接活跃贴吧
+        # if tieba_title_list is not None and len(tieba_title_list) > 0:
+        #     for tieba_title in tieba_title_list:
+        #         meta[self.const_active_tieba][tieba_title] = 0
+
+        # 插入对应的用户外部信息
+
+        yield item
+
+    def dealTime(self,date_text):
+        try:
+            dealDate.datetime.strptime(date_text, '%Y-%m-%d %H:%M')
+            return date_text + ':00'
+        except ValueError:
+            pass
+
+        return date_text
 

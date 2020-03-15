@@ -19,12 +19,12 @@ class TiebaPipeline(object):
         return cls(settings)
 
     def __init__(self, settings):
-        # dbname = settings['MYSQL_DBNAME']
-        tbname = settings['TIEBA_NAME']
-        # if not dbname.strip():
-        #     raise ValueError("No database name!")
-        if not tbname.strip():
-            raise ValueError("No tieba name!")
+        # # dbname = settings['MYSQL_DBNAME']
+        # tbname = settings['TIEBA_NAME']
+        # # if not dbname.strip():
+        # #     raise ValueError("No database name!")
+        # if not tbname.strip():
+        #     raise ValueError("No tieba name!")
 
         self.settings = settings
 
@@ -59,9 +59,10 @@ class TiebaPipeline(object):
     def process_item(self, item, spider):
         _conditional_insert = {
             'tiebaInfo': self.send_tieba_Info,
-            'thread': self.sendInfo,
-            'post': self.sendInfo,
-            'comment': self.sendInfo,
+            'thread': self.send_thread,
+            'post': self.send_post,
+            'comment': self.send_comment,
+            'tiebaAccountInfo': self.sendtiebaAccountInfo
             # 放到另一个爬虫从用户的详情页去获取
             # 'outerInfo': self.user_outer_Info
         }
@@ -70,41 +71,74 @@ class TiebaPipeline(object):
         # query.addErrback(self._handle_error, item, spider)
         return item
 
-    def send_tieba_Info(self,tx, item):
-        jsondata = json.dumps(item.__dict__)
-        dataType = 4
-        r = requests.post(
-            "http://localhost:9005/social-api/inner/channel/tiebaConfig/revice?" + "dataType=" + str(dataType), None,
-            jsondata)
+    def send_thread(self,  item):
 
-
-    def send_thread(self, tx, item):
-        jsondata = json.dumps(item.__dict__)
-        dataType = 1
-        r = requests.post(
-            "http://localhost:9005/social-api/inner/channel/tiebaConfig/revice?" + "dataType=" + str(dataType), None,
-            jsondata)
+        thread_dict = item.__dict__
+        if thread_dict['isSend']:
+            jsondata = json.dumps(thread_dict)
+            dataType = 1
+            print("是否发送:{},类型:{}".format(item['isSend'], type(item['isSend'])))
+            if item['isSend']:
+                r = requests.post(
+                    "http://localhost:9005/social-api/inner/channel/tiebaConfig/revice?" + "dataType=" + str(dataType),
+                    None,
+                    jsondata)
 
         return
         
-    def insert_post(self, tx, item):
-        jsondata = json.dumps(item.__dict__)
-        dataType = 2
-        r = requests.post(
-            "http://localhost:9005/social-api/inner/channel/tiebaConfig/revice?" + "dataType=" + str(dataType), None,
-            jsondata)
+    def send_post(self,  item):
+        post_dict = item.__dict__
+        if post_dict['isSend']:
+            jsondata = json.dumps(post_dict)
+            dataType = 2
+            print("是否发送:{},类型:{}".format(item['isSend'], type(item['isSend'])))
+            if item['isSend']:
+                r = requests.post(
+                    "http://localhost:9005/social-api/inner/channel/tiebaConfig/revice?" + "dataType=" + str(dataType), None,
+                    jsondata)
         return
-    def insert_comment(self, tx, item):
-        jsondata = json.dumps(item.__dict__)
-        dataType = 3
-        r = requests.post(
-            "http://localhost:9005/social-api/inner/channel/tiebaConfig/revice?" + "dataType=" + str(dataType), None,
-            jsondata)
+    def send_comment(self, item):
+
+        comment_dict =item.__dict__
+        if comment_dict['isSend']:
+            jsondata = json.dumps(comment_dict)
+            dataType = 3
+            print("是否发送:{},类型:{}".format(item['isSend'], type(item['isSend'])))
+            if item['isSend']:
+                r = requests.post(
+                    "http://localhost:9005/social-api/inner/channel/tiebaConfig/revice?" + "dataType=" + str(dataType), None,
+                    jsondata)
         return
     # def user_outer_Info(self,tx,item):
     #     sql = "replace into user_outer_Info values(%s, %s,%s, %s, %s, %s)"
     #     params = (0, item['author_id'], item['author'], item['content'], item['time'], item['post_id'])
     #     tx.execute(sql, params)
+
+    def send_tieba_Info(self, item):
+
+        info_dict = item.__dict__
+
+        jsondata = json.dumps(info_dict)
+        dataType = 4
+        r = requests.post(
+            "http://localhost:9005/social-api/inner/channel/tiebaConfig/revice?" + "dataType=" + str(dataType),
+            None,
+            jsondata)
+
+        return
+
+    def sendtiebaAccountInfo(self,item):
+
+        tieba_account_dict = item.__dict__
+
+        jsondata = json.dumps(tieba_account_dict)
+        dataType = 5
+        print("是否发送:{},类型:{}".format(item['isSend'], type(item['isSend'])))
+        r = requests.post(
+            "http://localhost:9005/social-api/inner/channel/tiebaConfig/revice?" + "dataType=" + str(dataType),
+            None,
+            jsondata)
+        return
 
     #错误处理方法
     def _handle_error(self, fail, item, spider):
